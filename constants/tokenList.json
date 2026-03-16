@@ -1,0 +1,18 @@
+{
+    "0xcebA9300f2b948710d2653dD7B07f33A8B32118C": {
+        "name": "USDC",
+        "symbol": "USDC",
+        "decimals": 6,
+        "address": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+        "yieldadapter": "0xA35d432790a1C76f1194eFC7672e1884C1876720",
+        "yieldAdapter name": "MockAave"
+    },
+     "0xc2ed2E050B092C20995f6F47dB357e25CDe0fDA4": {
+        "name": "G$",
+        "symbol": "G$",
+        "decimals": 6,
+        "address": "0xc2ed2E050B092C20995f6F47dB357e25CDe0fDA4",
+        "yieldadapter": "0xA35d432790a1C76f1194eFC7672e1884C1876720",
+        "yieldAdapter name": "MockAave"
+    }
+}
