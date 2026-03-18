@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
+import ContextProvider from "@/context";
+import { WalletRouter } from "@/components/pools/WalletRouter";
+import { Toaster } from "sonner";
+
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -15,17 +20,24 @@ export const metadata: Metadata = {
     "Nectar helps communities save together and earn yield safely. The yield is shared based on rules you set while everyone's savings remain protected.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headersObj = await headers();
+  const cookies = headersObj.get("cookie");
+
   return (
     <html lang="en">
       <body className={`${manrope.variable} antialiased bg-white min-h-screen`}>
-        <main className="bg-white min-h-screen">
-          {children}
-        </main>
+        <ContextProvider cookies={cookies}>
+          <main className="bg-white min-h-screen">  
+            <Toaster />
+            <WalletRouter />         
+            {children}
+          </main>
+        </ContextProvider>
       </body>
     </html>
   );
