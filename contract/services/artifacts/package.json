@@ -1,0 +1,25 @@
+{
+  "name": "@nectar/artifacts-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "generate": "node src/cli.js generate",
+    "list": "node src/cli.js list",
+    "decrypt": "node src/cli.js decrypt",
+    "create-auth-context": "node src/cli.js create-auth-context",
+    "create-session-sigs": "node src/cli.js create-session-sigs",
+    "server": "node src/server.js",
+    "sample": "node src/cli.js generate --source sample --encrypt dev --store local"
+  },
+  "dependencies": {
+    "@lit-protocol/auth": "8.2.3",
+    "@lit-protocol/lit-client": "8.3.1",
+    "@lit-protocol/networks": "8.4.1",
+    "@storacha/client": "1.8.26",
+    "viem": "2.38.3"
+  }
+}

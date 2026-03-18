@@ -1,0 +1,27 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+# Dotenv file
+.env
+services/artifacts/.env
+script/arbitrum.env
+
+# Dependencies (installed via `forge install`)
+node_modules/
+services/artifacts/node_modules/
+services/artifacts/data/
+services/artifacts/lit-auth-context-*.json
+services/artifacts/lit-session-sigs-*.json
+
+# System files
+system_map/
+ARCHITECTURE.md
+SYSTEM_MAP.md
