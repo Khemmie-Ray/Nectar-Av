@@ -33,7 +33,7 @@ export default async function RootLayout({
       <body className={`${manrope.variable} antialiased bg-white min-h-screen`}>
         <ContextProvider cookies={cookies}>
           <main className="bg-white min-h-screen">  
-            <Toaster />
+            <Toaster richColors />
             <WalletRouter />         
             {children}
           </main>
