@@ -1,17 +1,15 @@
+import { useRef, useCallback, useEffect } from "react";
 import {
   useWriteContract,
   useWaitForTransactionReceipt,
   usePublicClient,
 } from "wagmi";
-import { useRef, useEffect, useCallback } from "react";
 import { parseUnits, decodeEventLog, BaseError } from "viem";
 import nectarFactoryAbi from "@/constant/abi.json";
 import { toast } from "sonner";
 
-const FACTORY_ADDRESS = process.env
-  .NEXT_PUBLIC_CONTRACT_ADDRESS! as `0x${string}`;
+const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS! as `0x${string}`;
 
-// Priority fee on top of the live base fee (1 gwei)
 const PRIORITY_FEE = 1_000_000_000n;
 
 export enum EnrollmentWindow {
@@ -44,15 +42,6 @@ export interface CreatePoolFormData {
   distributionMode: DistributionMode;
 }
 
-interface PoolCreatedArgs {
-  pool: `0x${string}`;
-  creator: `0x${string}`;
-  token: `0x${string}`;
-  targetAmount: bigint;
-  maxMembers: number;
-  totalCycles: number;
-}
-
 function extractPoolAddress(receipt: any): `0x${string}` | null {
   for (const log of receipt.logs) {
     try {
@@ -62,7 +51,7 @@ function extractPoolAddress(receipt: any): `0x${string}` | null {
         topics: log.topics,
       });
       if (decoded.eventName === "PoolCreated") {
-        return (decoded.args as unknown as PoolCreatedArgs).pool;
+        return (decoded.args as any).pool;
       }
     } catch {
       continue;
@@ -71,22 +60,9 @@ function extractPoolAddress(receipt: any): `0x${string}` | null {
   return null;
 }
 
-async function getFreshFeeOverrides(
-  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
-) {
-  const block = await publicClient.getBlock({ blockTag: "latest" });
-  const baseFee = block.baseFeePerGas;
-  if (!baseFee) return undefined;
-  return {
-    maxFeePerGas: baseFee * 2n + PRIORITY_FEE,
-    maxPriorityFeePerGas: PRIORITY_FEE,
-  };
-}
-
 export function useCreatePool() {
   const publicClient = usePublicClient();
   const toastShownRef = useRef<string | null>(null);
-  const lastHashRef = useRef<string | null>(null);
 
   const {
     data: hash,
@@ -102,34 +78,25 @@ export function useCreatePool() {
     isSuccess,
   } = useWaitForTransactionReceipt({
     hash,
-    query: { select: extractPoolAddress },
+    query: {
+      select: extractPoolAddress,
+      enabled: !!hash,
+    },
   });
 
   useEffect(() => {
-    if (hash) lastHashRef.current = hash;
-  }, [hash]);
-
-  useEffect(() => {
-    const cachedHash = lastHashRef.current;
-    if (!isSuccess || !cachedHash || toastShownRef.current === cachedHash)
-      return;
-    toastShownRef.current = cachedHash;
+    if (!isSuccess || !hash || toastShownRef.current === hash) return;
+    toastShownRef.current = hash;
 
     if (createdPoolAddress) {
       toast.success(
         `Pool created at ${createdPoolAddress.slice(0, 6)}...${createdPoolAddress.slice(-4)}`,
+        { position: "top-center" },
       );
     } else {
-      toast.success("Pool created successfully!");
+      toast.success("Pool created successfully!", { position: "top-center" });
     }
-  }, [isSuccess, createdPoolAddress]);
-
-  useEffect(() => {
-    if (!writeError) return;
-    const message =
-      (writeError as BaseError).shortMessage ?? writeError.message;
-    toast.error(`Error: ${message}`, { position: "top-center" });
-  }, [writeError]);
+  }, [isSuccess, hash, createdPoolAddress]);
 
   const createPool = useCallback(
     async (formData: CreatePoolFormData, tokenDecimals: number) => {
@@ -147,10 +114,16 @@ export function useCreatePool() {
         distributionMode: formData.distributionMode,
       };
 
-      let feeOverrides: Awaited<ReturnType<typeof getFreshFeeOverrides>>;
+      let feeOverrides: Record<string, bigint> | undefined;
       try {
         if (publicClient) {
-          feeOverrides = await getFreshFeeOverrides(publicClient);
+          const block = await publicClient.getBlock({ blockTag: "latest" });
+          if (block.baseFeePerGas) {
+            feeOverrides = {
+              maxFeePerGas: block.baseFeePerGas * 2n + PRIORITY_FEE,
+              maxPriorityFeePerGas: PRIORITY_FEE,
+            };
+          }
         }
       } catch {}
 
@@ -164,8 +137,10 @@ export function useCreatePool() {
           args: [config],
           ...feeOverrides,
         });
-      } catch (error) {
-        console.error("createPool failed:", error);
+      } catch (err) {
+        const message =
+          err instanceof BaseError ? err.shortMessage : (err as Error).message;
+        toast.error(`Error: ${message}`, { position: "top-center" });
       }
     },
     [publicClient, writeContractAsync],
@@ -174,7 +149,6 @@ export function useCreatePool() {
   const reset = useCallback(() => {
     resetWrite();
     toastShownRef.current = null;
-    lastHashRef.current = null;
   }, [resetWrite]);
 
   return {

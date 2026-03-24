@@ -102,7 +102,6 @@ export function useGetPoolDetails(
     return { poolDetails: null, isLoading, error, refetch };
   }
 
-  // config() returns: [name, token, targetAmount, maxMembers, totalCycles, winnersCount, cycleDuration, enrollmentWindow, distributionMode]
   const configResult = data[0]?.result as
     | readonly [
         string,

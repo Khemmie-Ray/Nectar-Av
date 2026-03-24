@@ -67,7 +67,6 @@ export function useGetAllPools() {
 
       if (!configResult) continue;
 
-      // config() returns: [name, token, targetAmount, maxMembers, totalCycles, winnersCount, cycleDuration, enrollmentWindow, distributionMode]
       const cfg = configResult as readonly [
         string,
         `0x${string}`,

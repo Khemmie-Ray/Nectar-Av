@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import LoadingSpinner from "@/components/Loaders/LoadingSpinner";
 import tokenList from "@/constant/tokenList.json";
 import {
@@ -13,103 +13,51 @@ import {
 import { toast } from "sonner";
 
 const FREQUENCY_OPTIONS = [
-  {
-    label: "Daily",
-    value: ContributionFrequency.Daily,
-    unit: "days",
-    min: 14,
-    max: 90,
-  },
-  {
-    label: "Weekly",
-    value: ContributionFrequency.Weekly,
-    unit: "weeks",
-    min: 4,
-    max: 26,
-  },
-  {
-    label: "Monthly",
-    value: ContributionFrequency.Monthly,
-    unit: "months",
-    min: 3,
-    max: 12,
-  },
+  { label: "Daily", value: ContributionFrequency.Daily, unit: "days", min: 14, max: 90 },
+  { label: "Weekly", value: ContributionFrequency.Weekly, unit: "weeks", min: 4, max: 26 },
+  { label: "Monthly", value: ContributionFrequency.Monthly, unit: "months", min: 3, max: 12 },
 ];
 
 const ENROLLMENT_OPTIONS = [
-  {
-    label: "Standard (first half)",
-    value: EnrollmentWindow.Standard,
-    description: "New members can join for the first 50% of cycles",
-  },
-  {
-    label: "Strict (first quarter)",
-    value: EnrollmentWindow.Strict,
-    description: "New members can join for the first 25% of cycles",
-  },
-  {
-    label: "Fixed (cycle 1 only)",
-    value: EnrollmentWindow.Fixed,
-    description: "All members must join in the first cycle",
-  },
+  { label: "Standard (first half)", value: EnrollmentWindow.Standard, description: "New members can join for the first 50% of cycles" },
+  { label: "Strict (first quarter)", value: EnrollmentWindow.Strict, description: "New members can join for the first 25% of cycles" },
+  { label: "Fixed (cycle 1 only)", value: EnrollmentWindow.Fixed, description: "All members must join in the first cycle" },
 ];
 
 const DISTRIBUTION_OPTIONS = [
-  {
-    label: "Equal Split",
-    value: DistributionMode.Equal,
-    description: "Yield divided equally among winners",
-  },
-  {
-    label: "Weighted Tiers",
-    value: DistributionMode.Weighted,
-    description: "50% / 30% / 20% split",
-  },
-  {
-    label: "Grand Prize",
-    value: DistributionMode.GrandPrize,
-    description: "Single winner takes all yield",
-  },
+  { label: "Equal Split", value: DistributionMode.Equal, description: "Yield divided equally among winners" },
+  { label: "Weighted Tiers", value: DistributionMode.Weighted, description: "50% / 30% / 20% split" },
+  { label: "Grand Prize", value: DistributionMode.GrandPrize, description: "Single winner takes all yield" },
 ];
 
-const Create = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    targetAmount: "",
-    maxMembers: "",
-    totalCycles: "",
-    winnersCount: "",
-  });
+const INITIAL_FORM = {
+  name: "",
+  targetAmount: "",
+  maxMembers: "",
+  totalCycles: "",
+  winnersCount: "",
+};
 
+export default function Create() {
+  const [formData, setFormData] = useState(INITIAL_FORM);
   const [selectedToken, setSelectedToken] = useState("");
-  const [frequency, setFrequency] = useState<ContributionFrequency>(
-    ContributionFrequency.Weekly,
-  );
-  const [enrollmentWindow, setEnrollmentWindow] = useState<EnrollmentWindow>(
-    EnrollmentWindow.Standard,
-  );
-  const [distributionMode, setDistributionMode] = useState<DistributionMode>(
-    DistributionMode.Equal,
-  );
+  const [frequency, setFrequency] = useState(ContributionFrequency.Weekly);
+  const [enrollmentWindow, setEnrollmentWindow] = useState(EnrollmentWindow.Standard);
+  const [distributionMode, setDistributionMode] = useState(DistributionMode.Equal);
 
   const tokens = Object.values(tokenList);
-
-  // Resolve the full token object so decimals are always accurate
   const currentToken = selectedToken
     ? tokenList[selectedToken as keyof typeof tokenList]
     : null;
 
-  const { createPool, isConfirming, isSuccess, isWriting, reset } =
-    useCreatePool();
+  const { createPool, isConfirming, isSuccess, isWriting, reset } = useCreatePool();
 
   const preview = useMemo(() => {
     const target = parseFloat(formData.targetAmount);
     const members = parseInt(formData.maxMembers);
     const cycles = parseInt(formData.totalCycles);
 
-    if (!target || !members || !cycles || members <= 0 || cycles <= 0) {
-      return null;
-    }
+    if (!target || !members || !cycles || members <= 0 || cycles <= 0) return null;
 
     const perMember = target / members;
     const perCycle = perMember / cycles;
@@ -121,94 +69,58 @@ const Create = () => {
       unit: freqOption?.unit?.slice(0, -1) || "cycle",
       totalDuration: `${cycles} ${freqOption?.unit || "cycles"}`,
     };
-  }, [
-    formData.targetAmount,
-    formData.maxMembers,
-    formData.totalCycles,
-    frequency,
-  ]);
+  }, [formData.targetAmount, formData.maxMembers, formData.totalCycles, frequency]);
 
   useEffect(() => {
-    if (isSuccess) {
-      setFormData({
-        name: "",
-        targetAmount: "",
-        maxMembers: "",
-        totalCycles: "",
-        winnersCount: "",
-      });
-      setSelectedToken("");
-      setFrequency(ContributionFrequency.Weekly);
-      setEnrollmentWindow(EnrollmentWindow.Standard);
-      setDistributionMode(DistributionMode.Equal);
-      reset();
-    }
+    if (!isSuccess) return;
+    setFormData(INITIAL_FORM);
+    setSelectedToken("");
+    setFrequency(ContributionFrequency.Weekly);
+    setEnrollmentWindow(EnrollmentWindow.Standard);
+    setDistributionMode(DistributionMode.Equal);
+    reset();
   }, [isSuccess, reset]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const currentFreqOption = FREQUENCY_OPTIONS.find(
-    (f) => f.value === frequency,
-  )!;
+  const currentFreqOption = FREQUENCY_OPTIONS.find((f) => f.value === frequency)!;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      toast.error("Please enter a pool name");
-      return;
-    }
-    if (!selectedToken || !currentToken) {
-      toast.error("Please select a token");
-      return;
-    }
-    if (!formData.targetAmount || parseFloat(formData.targetAmount) <= 0) {
-      toast.error("Please enter a valid target amount");
-      return;
-    }
-    if (!formData.maxMembers || parseInt(formData.maxMembers) < 3) {
-      toast.error("Minimum 3 members required");
-      return;
-    }
-    if (parseInt(formData.maxMembers) > 50) {
-      toast.error("Maximum 50 members allowed");
-      return;
-    }
-    if (
-      !formData.totalCycles ||
-      parseInt(formData.totalCycles) < currentFreqOption.min ||
-      parseInt(formData.totalCycles) > currentFreqOption.max
-    ) {
-      toast.error(
-        `Duration must be between ${currentFreqOption.min} and ${currentFreqOption.max} ${currentFreqOption.unit}`,
-      );
-      return;
-    }
-    if (!formData.winnersCount || parseInt(formData.winnersCount) < 1) {
-      toast.error("At least 1 winner required");
-      return;
-    }
-    if (parseInt(formData.winnersCount) >= parseInt(formData.maxMembers)) {
-      toast.error("Winners must be less than total members");
-      return;
+    if (!formData.name.trim()) return toast.error("Please enter a pool name");
+    if (!selectedToken || !currentToken) return toast.error("Please select a token");
+    if (!formData.targetAmount || parseFloat(formData.targetAmount) <= 0) return toast.error("Please enter a valid target amount");
+
+    const members = parseInt(formData.maxMembers);
+    if (!members || members < 3) return toast.error("Minimum 3 members required");
+    if (members > 50) return toast.error("Maximum 50 members allowed");
+
+    const cycles = parseInt(formData.totalCycles);
+    if (!cycles || cycles < currentFreqOption.min || cycles > currentFreqOption.max) {
+      return toast.error(`Duration must be between ${currentFreqOption.min} and ${currentFreqOption.max} ${currentFreqOption.unit}`);
     }
 
-    const poolData: CreatePoolFormData = {
-      name: formData.name.trim(),
-      token: selectedToken as `0x${string}`,
-      targetAmount: formData.targetAmount,
-      maxMembers: parseInt(formData.maxMembers),
-      totalCycles: parseInt(formData.totalCycles),
-      winnersCount: parseInt(formData.winnersCount),
-      frequency,
-      enrollmentWindow,
-      distributionMode,
-    };
+    const winners = parseInt(formData.winnersCount);
+    if (!winners || winners < 1) return toast.error("At least 1 winner required");
+    if (winners >= members) return toast.error("Winners must be less than total members");
 
-
-    createPool(poolData, currentToken.decimals);
+    createPool(
+      {
+        name: formData.name.trim(),
+        token: selectedToken as `0x${string}`,
+        targetAmount: formData.targetAmount,
+        maxMembers: members,
+        totalCycles: cycles,
+        winnersCount: winners,
+        frequency,
+        enrollmentWindow,
+        distributionMode,
+      },
+      currentToken.decimals
+    );
   };
 
   const isLoading = isWriting || isConfirming;
@@ -220,19 +132,13 @@ const Create = () => {
           Create a Pool
         </h1>
         <p className="text-xs sm:text-sm md:text-base text-gray-700">
-          Set up a new savings pool. Members contribute every cycle, yield goes
-          to the winners.
+          Set up a new savings pool. Members contribute every cycle, yield goes to the winners.
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="w-full lg:w-[80%] md:w-[80%] mx-auto my-8 space-y-6"
-      >
+      <form onSubmit={handleSubmit} className="w-full lg:w-[80%] md:w-[80%] mx-auto my-8 space-y-6">
         <div className="mb-4">
-          <label className="text-[14px] font-medium block mb-1">
-            Pool Name
-          </label>
+          <label className="text-[14px] font-medium block mb-1">Pool Name</label>
           <input
             type="text"
             placeholder="Give your pool a name"
@@ -260,17 +166,13 @@ const Create = () => {
           </div>
 
           <div className="mb-4 w-full lg:w-[48%] md:w-[48%]">
-            <label className="text-[14px] font-medium block mb-1">
-              Target Amount
-            </label>
+            <label className="text-[14px] font-medium block mb-1">Target Amount</label>
             <input
               type="number"
               step="0.01"
               placeholder="Total savings goal for the pool"
               value={formData.targetAmount}
-              onChange={(e) =>
-                handleInputChange("targetAmount", e.target.value)
-              }
+              onChange={(e) => handleInputChange("targetAmount", e.target.value)}
               className="p-3 border border-[#252B36]/30 block w-full text-xs rounded-lg"
             />
           </div>
@@ -279,8 +181,7 @@ const Create = () => {
         <div className="flex justify-between w-full flex-wrap lg:flex-row md:flex-row flex-col gap-4">
           <div className="mb-4 w-full lg:w-[48%] md:w-[48%]">
             <label className="text-[14px] font-medium block mb-1">
-              Max Members
-              <span className="text-gray-500 font-normal ml-1">(3–50)</span>
+              Max Members <span className="text-gray-500 font-normal ml-1">(3–50)</span>
             </label>
             <input
               type="number"
@@ -294,17 +195,13 @@ const Create = () => {
           </div>
 
           <div className="mb-4 w-full lg:w-[48%] md:w-[48%]">
-            <label className="text-[14px] font-medium block mb-1">
-              Winners Count
-            </label>
+            <label className="text-[14px] font-medium block mb-1">Winners Count</label>
             <input
               type="number"
               min={1}
               placeholder="How many members split the yield"
               value={formData.winnersCount}
-              onChange={(e) =>
-                handleInputChange("winnersCount", e.target.value)
-              }
+              onChange={(e) => handleInputChange("winnersCount", e.target.value)}
               className="p-3 border border-[#252B36]/30 block w-full text-xs rounded-lg"
             />
           </div>
@@ -312,18 +209,13 @@ const Create = () => {
 
         <div className="flex justify-between w-full flex-wrap lg:flex-row md:flex-row flex-col gap-4">
           <div className="mb-4 w-full lg:w-[48%] md:w-[48%]">
-            <label className="text-[14px] font-medium block mb-1">
-              Contribution Frequency
-            </label>
+            <label className="text-[14px] font-medium block mb-1">Contribution Frequency</label>
             <div className="flex gap-2">
               {FREQUENCY_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => {
-                    setFrequency(opt.value);
-                    handleInputChange("totalCycles", "");
-                  }}
+                  onClick={() => { setFrequency(opt.value); handleInputChange("totalCycles", ""); }}
                   className={`flex-1 p-3 rounded-lg text-xs font-medium border transition-colors ${
                     frequency === opt.value
                       ? "bg-[#FFC000] text-[#252B36] border-[#FFC000]"
@@ -338,11 +230,7 @@ const Create = () => {
 
           <div className="mb-4 w-full lg:w-[48%] md:w-[48%]">
             <label className="text-[14px] font-medium block mb-1">
-              Duration
-              <span className="text-gray-500 font-normal ml-1">
-                ({currentFreqOption.min}–{currentFreqOption.max}{" "}
-                {currentFreqOption.unit})
-              </span>
+              Duration <span className="text-gray-500 font-normal ml-1">({currentFreqOption.min}–{currentFreqOption.max} {currentFreqOption.unit})</span>
             </label>
             <input
               type="number"
@@ -357,9 +245,7 @@ const Create = () => {
         </div>
 
         <div className="mb-4">
-          <label className="text-[14px] font-medium block mb-2">
-            Enrollment Window
-          </label>
+          <label className="text-[14px] font-medium block mb-2">Enrollment Window</label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {ENROLLMENT_OPTIONS.map((opt) => (
               <button
@@ -373,18 +259,14 @@ const Create = () => {
                 }`}
               >
                 <span className="text-xs font-medium block">{opt.label}</span>
-                <span className="text-[11px] text-gray-500 block mt-1">
-                  {opt.description}
-                </span>
+                <span className="text-[11px] text-gray-500 block mt-1">{opt.description}</span>
               </button>
             ))}
           </div>
         </div>
 
         <div className="mb-4">
-          <label className="text-[14px] font-medium block mb-2">
-            Distribution Mode
-          </label>
+          <label className="text-[14px] font-medium block mb-2">Distribution Mode</label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {DISTRIBUTION_OPTIONS.map((opt) => (
               <button
@@ -398,9 +280,7 @@ const Create = () => {
                 }`}
               >
                 <span className="text-xs font-medium block">{opt.label}</span>
-                <span className="text-[11px] text-gray-500 block mt-1">
-                  {opt.description}
-                </span>
+                <span className="text-[11px] text-gray-500 block mt-1">{opt.description}</span>
               </button>
             ))}
           </div>
@@ -408,9 +288,7 @@ const Create = () => {
 
         {preview && (
           <div className="bg-[#F8F9FB] border border-[#252B36]/10 rounded-xl p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-[#252B36]">
-              Pool Summary
-            </h3>
+            <h3 className="text-sm font-semibold text-[#252B36]">Pool Summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-gray-500 block">Per Member Total</span>
@@ -419,18 +297,14 @@ const Create = () => {
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block">
-                  Contribution per {preview.unit}
-                </span>
+                <span className="text-gray-500 block">Contribution per {preview.unit}</span>
                 <span className="font-medium text-[#252B36]">
                   {preview.baseContribution} {currentToken?.symbol || "tokens"}
                 </span>
               </div>
               <div>
                 <span className="text-gray-500 block">Savings Period</span>
-                <span className="font-medium text-[#252B36]">
-                  {preview.totalDuration}
-                </span>
+                <span className="font-medium text-[#252B36]">{preview.totalDuration}</span>
               </div>
               <div>
                 <span className="text-gray-500 block">Winners</span>
@@ -454,6 +328,4 @@ const Create = () => {
       </form>
     </main>
   );
-};
-
-export default Create;
+}
