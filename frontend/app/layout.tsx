@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Manrope, Geist } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import ContextProvider from "@/context";
 import { WalletRouter } from "@/components/pools/WalletRouter";
 import { Toaster } from "sonner";
+import { cn } from "@/lib/utils";
 
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -29,7 +31,7 @@ export default async function RootLayout({
   const cookies = headersObj.get("cookie");
 
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className={`${manrope.variable} antialiased bg-white min-h-screen`}>
         <ContextProvider cookies={cookies}>
           <main className="bg-white min-h-screen">  

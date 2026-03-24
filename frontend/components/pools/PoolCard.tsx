@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { formatUnits } from "viem";
+import { PoolInfo } from "@/hooks/useGetAllPools";
 import {
   getFlowerForPool,
   formatFrequency,
@@ -8,21 +10,7 @@ import {
   POOL_STATE_LABELS,
   POOL_STATE_COLORS,
 } from "@/utils/poolutils";
-
-const formatAmount = (amount: bigint) =>
-  (Number(amount) / 1_000_000).toFixed(2);
-
-interface PoolInfo {
-  address: string;
-  cycleDuration: number;
-  totalCycles: number;
-  maxMembers: number;
-  activeMembers: number;
-  currentCycle: number;
-  targetAmount: bigint;
-  winnersCount: number;
-  state: number;
-}
+import { getTokenSymbol, getTokenDecimals } from "@/utils/tokenutils";
 
 interface PoolCardProps {
   pool: PoolInfo;
@@ -36,27 +24,40 @@ export default function PoolCard({ pool }: PoolCardProps) {
   const stateColor =
     POOL_STATE_COLORS[pool.state] || "bg-gray-100 text-gray-700";
 
+  const symbol = getTokenSymbol(pool.token);
+  const decimals = getTokenDecimals(pool.token);
+
   const perCycle =
     pool.totalCycles > 0 && pool.maxMembers > 0
       ? pool.targetAmount / BigInt(pool.maxMembers) / BigInt(pool.totalCycles)
-      : BigInt(0);
+      : 0n;
 
   const slotsLeft = pool.maxMembers - pool.activeMembers;
+  const displayName = pool.name || flower.name;
 
   return (
     <div className="w-full lg:w-[22%] md:w-[22%] rounded-xl border border-[#252B36]/20">
-      <Link href={`/pools/${pool.address}`} className="group block hover:text-center">
+      <Link
+        href={`/pools/${pool.address}`}
+        className="group block hover:text-center"
+      >
         <div className="relative h-40 lg:h-44 w-full overflow-hidden rounded-bl-[70px] rounded-tr-xl rounded-tl-xl">
           <div
             className={`absolute inset-0 bg-linear-to-br ${flower.gradient} flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-0`}
           >
             <span className="text-5xl">{flower.emoji}</span>
+            <span
+              className={`absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-medium ${stateColor}`}
+            >
+              {stateLabel}
+            </span>
           </div>
+
           <div className="absolute inset-0 flex flex-col justify-center px-6 bg-white opacity-0 transition-opacity duration-300 group-hover:opacity-100 text-center">
             <div className="my-3">
               <p className="text-[#7D7C7C] text-[12px] mb-1">Per {unit}</p>
               <span className="font-bold text-gray-900 text-[16px]">
-                {formatAmount(perCycle)}
+                {formatUnits(perCycle, decimals)} {symbol}
               </span>
             </div>
 
@@ -75,10 +76,11 @@ export default function PoolCard({ pool }: PoolCardProps) {
             </div>
           </div>
         </div>
+
         <div className="p-4 sm:p-5 w-full">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-[18px] text-[#252B36]">
-              {flower.name}
+              {displayName}
             </h3>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${flower.bgColor} ${flower.accentColor}`}
@@ -97,9 +99,10 @@ export default function PoolCard({ pool }: PoolCardProps) {
             <div className="flex items-center gap-2">
               <span className="text-gray-600 text-[12px]">Target:</span>
               <span className="font-bold text-gray-900 text-[14px]">
-                {formatAmount(pool.targetAmount)}
+                {formatUnits(pool.targetAmount, decimals)} {symbol}
               </span>
             </div>
+
             <div className="flex items-center gap-1.5">
               <div className="w-16 bg-gray-200 rounded-full h-1.5">
                 <div
