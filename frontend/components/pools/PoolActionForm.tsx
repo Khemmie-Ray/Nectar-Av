@@ -1,6 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { formatUnits, BaseError } from "viem";
+import { useReadContract } from "wagmi";
+import { useJoinPool } from "@/hooks/useJoinPool";
+import { usePoolDeposit } from "@/hooks/usePoolDeposit";
+import { usePoolClaim } from "@/hooks/usePoolClaim";
+import { useEmergencyWithdraw } from "@/hooks/useEmergencyWithdraw";
+import factoryAbi from "@/constant/abi.json";
+
+const FACTORY_ADDRESS = process.env
+  .NEXT_PUBLIC_CONTRACT_ADDRESS! as `0x${string}`;
 
 const PoolState = {
   Enrollment: 0,
@@ -22,12 +32,11 @@ interface PoolActionFormProps {
   claimableAmount: bigint;
   totalPaid: bigint;
   frequencyUnit: string;
+  tokenSymbol: string;
+  tokenDecimals: number;
   userAddress?: `0x${string}`;
   onSuccess?: () => void;
 }
-
-const formatAmount = (amount: bigint) =>
-  (Number(amount) / 1_000_000).toFixed(2);
 
 export default function PoolActionForm({
   poolAddress,
@@ -40,26 +49,115 @@ export default function PoolActionForm({
   claimableAmount,
   totalPaid,
   frequencyUnit: unit,
+  tokenSymbol,
+  tokenDecimals,
   userAddress,
   onSuccess,
 }: PoolActionFormProps) {
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { data: activePoolCountRaw } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: factoryAbi,
+    functionName: "activePoolCount",
+    args: userAddress ? [userAddress] : undefined,
+    query: { enabled: !!userAddress, staleTime: 10_000 },
+  });
+
+  const activePoolCount = Number(activePoolCountRaw ?? 0);
+  const isAtPoolLimit = activePoolCount >= 3;
+  const isNearPoolLimit = activePoolCount === 2;
+
+  const {
+    join,
+    step: joinStep,
+    isPending: joinPending,
+    isConfirming: joinConfirming,
+    isSuccess: joinSuccess,
+    isLoading: joinLoading,
+    error: joinError,
+    currentAllowance: joinAllowance,
+  } = useJoinPool(poolAddress, tokenAddress, userAddress);
+
+  const {
+    deposit,
+    step: depositStep,
+    isPending: depositPending,
+    isConfirming: depositConfirming,
+    isSuccess: depositSuccess,
+    isLoading: depositLoading,
+    error: depositError,
+    currentAllowance,
+  } = usePoolDeposit(poolAddress, tokenAddress, userAddress);
+
+  const {
+    claim,
+    isPending: claimPending,
+    isConfirming: claimConfirming,
+    isSuccess: claimSuccess,
+    isLoading: claimLoading,
+    error: claimError,
+  } = usePoolClaim(poolAddress);
+
+  const {
+    withdraw: emergencyWithdraw,
+    isPending: withdrawPending,
+    isConfirming: withdrawConfirming,
+    isSuccess: withdrawSuccess,
+    isLoading: withdrawLoading,
+    error: withdrawError,
+  } = useEmergencyWithdraw(poolAddress);
+
+  const isLoading = joinLoading || depositLoading || claimLoading || withdrawLoading;
+  const isSuccess = joinSuccess || depositSuccess || claimSuccess || withdrawSuccess;
+  const error = joinError || depositError || claimError || withdrawError;
 
   const hasFiredSuccess = useRef(false);
 
+  useEffect(() => {
+    if (isSuccess && !hasFiredSuccess.current) {
+      hasFiredSuccess.current = true;
+      setShowWithdrawConfirm(false);
+      onSuccess?.();
+    }
+  }, [isSuccess, onSuccess]);
+
+  useEffect(() => {
+    if (!isLoading && !isSuccess) {
+      hasFiredSuccess.current = false;
+    }
+  }, [isLoading, isSuccess]);
+
   const handlePrimaryAction = () => {
     if (!userAddress) return;
-    // TODO: wire up contract calls based on poolState
-    console.log("Primary action for pool state:", poolState);
+
+    switch (poolState) {
+      case PoolState.Enrollment:
+        if (!isMember) {
+          join(perMember);
+        } else {
+          deposit(assignedRate);
+        }
+        break;
+      case PoolState.Saving:
+        if (!isMember) {
+          join(perMember);
+        } else {
+          deposit(assignedRate);
+        }
+        break;
+      case PoolState.Settled:
+        claim();
+        break;
+      case PoolState.Cancelled:
+        claim();
+        break;
+    }
   };
 
   const handleEmergencyWithdraw = () => {
     if (!userAddress) return;
-    // TODO: wire up emergency withdraw
-    console.log("Emergency withdraw from:", poolAddress);
+    emergencyWithdraw();
   };
 
   const canEmergencyWithdraw =
@@ -67,25 +165,33 @@ export default function PoolActionForm({
     (poolState === PoolState.Enrollment || poolState === PoolState.Saving) &&
     totalPaid > 0n;
 
+  const fmt = (value: bigint) => formatUnits(value, tokenDecimals);
+
   const getStateConfig = () => {
     switch (poolState) {
       case PoolState.Enrollment:
         if (!isMember) {
           return {
-            label: "Join Pool",
+            label: isAtPoolLimit ? "Pool Limit Reached" : "Join Pool",
             rateDisplay: joinRate,
             rateLabel: "Join fee (first deposit)",
             showRate: true,
             showPerUnit: true,
-            disabled: false,
-            infoText:
-              "Joining the pool makes your first cycle deposit automatically. The amount is based on the current cycle.",
-            infoColor: "bg-blue-50 border-blue-200 text-blue-800",
+            disabled: isAtPoolLimit,
+            infoText: isAtPoolLimit
+              ? "You're already in 3 active pools. Leave or wait for one to settle before joining another."
+              : isNearPoolLimit
+                ? "You're in 2 of 3 allowed active pools. This will be your last."
+                : "Joining the pool makes your first cycle deposit automatically. The amount is based on the current cycle.",
+            infoColor: isAtPoolLimit
+              ? "bg-red-50 border-red-200 text-red-800"
+              : isNearPoolLimit
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-blue-50 border-blue-200 text-blue-800",
           };
         }
         return {
           label: "Make Deposit",
-          sublabel: `${formatAmount(assignedRate)} USDC per ${unit}`,
           rateDisplay: assignedRate,
           rateLabel: "Contribution amount",
           showRate: true,
@@ -98,15 +204,22 @@ export default function PoolActionForm({
       case PoolState.Saving:
         if (!isMember) {
           return {
-            label: "Join Pool",
+            label: isAtPoolLimit ? "Pool Limit Reached" : "Join Pool",
             rateDisplay: joinRate,
             rateLabel: "Calculated join rate",
             showRate: true,
             showPerUnit: true,
-            disabled: false,
-            infoText:
-              "You can still join during saving. Your per-cycle rate is adjusted based on remaining cycles.",
-            infoColor: "bg-blue-50 border-blue-200 text-blue-800",
+            disabled: isAtPoolLimit,
+            infoText: isAtPoolLimit
+              ? "You're already in 3 active pools. Leave or wait for one to settle before joining another."
+              : isNearPoolLimit
+                ? "You're in 2 of 3 allowed active pools. This will be your last."
+                : "You can still join during saving. Your per-cycle rate is adjusted based on remaining cycles.",
+            infoColor: isAtPoolLimit
+              ? "bg-red-50 border-red-200 text-red-800"
+              : isNearPoolLimit
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-blue-50 border-blue-200 text-blue-800",
           };
         }
         return {
@@ -142,7 +255,7 @@ export default function PoolActionForm({
           showPerUnit: false,
           disabled: true,
           infoText:
-            "Chainlink VRF is selecting winners. This usually completes within a few minutes.",
+            "VRF is selecting winners. This usually completes within a few minutes.",
           infoColor: "bg-purple-50 border-purple-200 text-purple-800",
         };
 
@@ -188,11 +301,29 @@ export default function PoolActionForm({
   const config = getStateConfig();
 
   const getSpinnerLabel = () => {
-    if (isLoading) return "Processing...";
+    if (joinStep === "approving" && joinPending) return "Approve Token Spend...";
+    if (joinStep === "approving" && joinConfirming) return "Confirming Approval...";
+    if (joinStep === "joining" && joinPending) return "Confirm Join...";
+    if (joinStep === "joining" && joinConfirming) return "Joining Pool...";
+    if (depositStep === "approving" && depositPending) return "Approve Token Spend...";
+    if (depositStep === "approving" && depositConfirming) return "Confirming Approval...";
+    if (depositStep === "depositing" && depositPending) return "Confirm Deposit...";
+    if (depositStep === "depositing" && depositConfirming) return "Confirming Deposit...";
+    if (claimPending) return "Confirm Transaction...";
+    if (claimConfirming) return "Processing...";
+    if (withdrawPending) return "Confirm Withdrawal...";
+    if (withdrawConfirming) return "Processing Withdrawal...";
     return null;
   };
 
   const spinnerLabel = getSpinnerLabel();
+
+  const getErrorMessage = () => {
+    if (!error || isLoading) return null;
+    return error instanceof BaseError ? error.shortMessage : error.message;
+  };
+
+  const errorMessage = getErrorMessage();
 
   return (
     <div className="space-y-4">
@@ -210,10 +341,10 @@ export default function PoolActionForm({
           </div>
           <div className="flex items-baseline justify-between">
             <p className="text-xl sm:text-2xl font-bold text-[#252B36]">
-              ${formatAmount(config.rateDisplay)}
+              {fmt(config.rateDisplay)}
             </p>
             <span className="text-xs sm:text-sm text-gray-500 font-medium">
-              USDC
+              {tokenSymbol}
             </span>
           </div>
         </div>
@@ -256,17 +387,17 @@ export default function PoolActionForm({
               <p className="text-xs text-red-800">
                 Are you sure? You&apos;ll receive your{" "}
                 <span className="font-bold">
-                  ${formatAmount(totalPaid)} USDC
+                  {fmt(totalPaid)} {tokenSymbol}
                 </span>{" "}
                 back and be removed from the pool. This cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={handleEmergencyWithdraw}
-                  disabled={isLoading}
+                  disabled={withdrawLoading}
                   className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {isLoading ? (
+                  {withdrawLoading ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Processing...
@@ -277,7 +408,7 @@ export default function PoolActionForm({
                 </button>
                 <button
                   onClick={() => setShowWithdrawConfirm(false)}
-                  disabled={isLoading}
+                  disabled={withdrawLoading}
                   className="flex-1 py-2 bg-white border border-gray-300 text-[#252B36] rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
@@ -288,6 +419,16 @@ export default function PoolActionForm({
         </div>
       )}
 
+      {userAddress &&
+        (poolState === PoolState.Enrollment || poolState === PoolState.Saving) &&
+        ((isMember && currentAllowance > 0n) ||
+          (!isMember && joinAllowance > 0n)) && (
+          <div className="p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-700">
+            Current approval:{" "}
+            {fmt(isMember ? currentAllowance : joinAllowance)} {tokenSymbol}
+          </div>
+        )}
+
       {!userAddress && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-xs text-blue-800">
@@ -296,9 +437,9 @@ export default function PoolActionForm({
         </div>
       )}
 
-      {error && !isLoading && (
+      {errorMessage && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-xs text-red-800 font-medium">✗ {error}</p>
+          <p className="text-xs text-red-800 font-medium">✗ {errorMessage}</p>
         </div>
       )}
 
