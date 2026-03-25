@@ -2,15 +2,14 @@ import { useRef, useCallback, useEffect } from "react";
 import {
   useWriteContract,
   useWaitForTransactionReceipt,
-  usePublicClient,
 } from "wagmi";
 import { parseUnits, decodeEventLog, BaseError } from "viem";
 import nectarFactoryAbi from "@/constant/abi.json";
 import { toast } from "sonner";
+import { useGasOverrides } from "@/hooks/useGasOverrides";
 
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS! as `0x${string}`;
-
-const PRIORITY_FEE = 1_000_000_000n;
+const FACTORY_ADDRESS = process.env
+  .NEXT_PUBLIC_CONTRACT_ADDRESS! as `0x${string}`;
 
 export enum EnrollmentWindow {
   Standard = 0,
@@ -61,7 +60,7 @@ function extractPoolAddress(receipt: any): `0x${string}` | null {
 }
 
 export function useCreatePool() {
-  const publicClient = usePublicClient();
+  const { getOverrides } = useGasOverrides();
   const toastShownRef = useRef<string | null>(null);
 
   const {
@@ -91,7 +90,7 @@ export function useCreatePool() {
     if (createdPoolAddress) {
       toast.success(
         `Pool created at ${createdPoolAddress.slice(0, 6)}...${createdPoolAddress.slice(-4)}`,
-        { position: "top-center" },
+        { position: "top-center" }
       );
     } else {
       toast.success("Pool created successfully!", { position: "top-center" });
@@ -114,18 +113,7 @@ export function useCreatePool() {
         distributionMode: formData.distributionMode,
       };
 
-      let feeOverrides: Record<string, bigint> | undefined;
-      try {
-        if (publicClient) {
-          const block = await publicClient.getBlock({ blockTag: "latest" });
-          if (block.baseFeePerGas) {
-            feeOverrides = {
-              maxFeePerGas: block.baseFeePerGas * 2n + PRIORITY_FEE,
-              maxPriorityFeePerGas: PRIORITY_FEE,
-            };
-          }
-        }
-      } catch {}
+      let feeOverrides = await getOverrides();
 
       toast.info("Please confirm the transaction in your wallet");
 
@@ -143,7 +131,7 @@ export function useCreatePool() {
         toast.error(`Error: ${message}`, { position: "top-center" });
       }
     },
-    [publicClient, writeContractAsync],
+    [getOverrides, writeContractAsync],
   );
 
   const reset = useCallback(() => {

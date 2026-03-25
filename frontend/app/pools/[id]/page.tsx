@@ -21,6 +21,7 @@ import { Clock, Users, Trophy, Shield, Wallet } from "lucide-react";
 import Image from "next/image";
 import YieldChart from "@/components/pools/YieldChart";
 import PoolActionForm from "@/components/pools/PoolActionForm";
+import { getTokenSymbol, getTokenDecimals } from "@/utils/tokenutils";
 
 export default function PoolDetails() {
   const params = useParams();
@@ -57,6 +58,9 @@ export default function PoolDetails() {
   const stateColor = poolDetails
     ? POOL_STATE_COLORS[poolDetails.state] || "bg-gray-100 text-gray-700"
     : "";
+
+  const tokenSymbol = poolDetails ? getTokenSymbol(poolDetails.token) : "TOKEN";
+  const tokenDecimals = poolDetails ? getTokenDecimals(poolDetails.token) : 18;
 
   const perMember =
     poolDetails && poolDetails.maxMembers > 0
@@ -109,6 +113,7 @@ export default function PoolDetails() {
     userMember && userMember.joinCycle > 0 && !userMember.isRemoved;
   const isUserRemoved = userMember?.isRemoved || false;
 
+  // Members pagination
   const membersPerPage = 5;
   const totalPages = Math.ceil(memberList.length / membersPerPage);
   const paginatedMembers = memberList.slice(
@@ -119,6 +124,7 @@ export default function PoolDetails() {
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
       <main className="w-full">
+        {/* ─── Header — always visible ─── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#252B36] mb-1">
@@ -137,14 +143,16 @@ export default function PoolDetails() {
           )}
         </div>
 
+        {/* Loading */}
         {isLoading && (
-          <div className="flex justify-center items-center min-h-100">
+          <div className="flex justify-center items-center min-h-[400px]">
             <LoadingSpinner />
           </div>
         )}
 
+        {/* Error */}
         {!isLoading && (error || !poolDetails) && (
-          <div className="flex flex-col items-center justify-center min-h-75 text-center">
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
             <span className="text-4xl mb-3">&#x26A0;&#xFE0F;</span>
             <p className="text-red-500 font-medium text-sm">
               {error?.message || "Pool not found"}
@@ -152,14 +160,22 @@ export default function PoolDetails() {
           </div>
         )}
 
+        {/* ─── Main content ─── */}
         {!isLoading && poolDetails && (
           <>
+            {/* ═══ Row 1: Three Info Cards (from existing design) ═══ */}
             <div className="flex mb-6 justify-between lg:flex-row md:flex-row flex-col gap-4">
+              {/* Left — Flower & Config */}
               <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 lg:w-[28%] md:w-[28%] w-full">
                 <div
-                  className={`bg-linear-to-br ${flower.gradient} rounded-lg p-6 text-center mb-4`}
+                  className={`bg-gradient-to-br ${flower.gradient} rounded-lg p-6 text-center mb-4`}
                 >
                   <span className="text-6xl">{flower.emoji}</span>
+                  <p
+                    className={`text-sm mt-2 font-semibold ${flower.accentColor}`}
+                  >
+                    {poolDetails.name || flower.name}
+                  </p>
                 </div>
 
                 <div className="space-y-3 text-xs">
@@ -194,6 +210,8 @@ export default function PoolDetails() {
                   </div>
                 </div>
               </div>
+
+              {/* Middle — Members & Winners */}
               <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 lg:w-[28%] md:w-[28%] w-full">
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <div className="flex items-start justify-between mb-3">
@@ -251,6 +269,7 @@ export default function PoolDetails() {
                   </div>
                 </div>
 
+                {/* User status */}
                 {userAddress && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     {isUserMember ? (
@@ -261,12 +280,13 @@ export default function PoolDetails() {
                         <p className="text-green-700 text-[10px]">
                           Joined cycle {userMember!.joinCycle} &middot;{" "}
                           {userMember!.cyclesPaid} cycles paid &middot;{" "}
-                          {formatUnits(userMember!.totalPaid, 6)} total
-                          deposited
+                          {formatUnits(userMember!.totalPaid, tokenDecimals)}{" "}
+                          total deposited
                         </p>
                         <p className="text-green-700 text-[10px]">
-                          Rate: {formatUnits(userMember!.assignedRate, 6)} per{" "}
-                          {unit}
+                          Rate:{" "}
+                          {formatUnits(userMember!.assignedRate, tokenDecimals)}{" "}
+                          per {unit}
                         </p>
                       </div>
                     ) : isUserRemoved ? (
@@ -282,7 +302,8 @@ export default function PoolDetails() {
                         </p>
                         {poolDetails.joinRate && (
                           <p className="text-blue-700 text-[10px]">
-                            Your rate: {formatUnits(poolDetails.joinRate, 6)}{" "}
+                            Your rate:{" "}
+                            {formatUnits(poolDetails.joinRate, tokenDecimals)}{" "}
                             per {unit}
                           </p>
                         )}
@@ -297,6 +318,8 @@ export default function PoolDetails() {
                   </div>
                 )}
               </div>
+
+              {/* Right — Timeline & Amounts */}
               <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 lg:w-[40%] md:w-[40%] w-full">
                 <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-200">
                   <div className="text-[10px] text-[#7D7C7C]">
@@ -326,19 +349,19 @@ export default function PoolDetails() {
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-[#252B36] p-3 text-center rounded">
                     <p className="text-white text-sm font-bold mb-0.5">
-                      {formatUnits(poolDetails.targetAmount, 6)}
+                      {formatUnits(poolDetails.targetAmount, tokenDecimals)}
                     </p>
                     <p className="text-gray-400 text-[8px]">Target</p>
                   </div>
                   <div className="p-3 text-center border border-gray-200 rounded">
                     <p className="text-[#252B36] text-sm font-bold mb-0.5">
-                      {formatUnits(perMember, 6)}
+                      {formatUnits(perMember, tokenDecimals)}
                     </p>
                     <p className="text-[#7D7C7C] text-[8px]">Per Member</p>
                   </div>
                   <div className="p-3 text-center border border-gray-200 rounded">
                     <p className="text-[#252B36] text-sm font-bold mb-0.5">
-                      {formatUnits(perCycle, 6)}
+                      {formatUnits(perCycle, tokenDecimals)}
                     </p>
                     <p className="text-[#7D7C7C] text-[8px]">Per {unit}</p>
                   </div>
@@ -362,14 +385,20 @@ export default function PoolDetails() {
                           <Wallet className="w-3 h-3" /> Claimable
                         </p>
                         <p className="text-yellow-900 font-bold text-sm">
-                          {formatUnits(poolDetails.userClaimable, 6)}
+                          {formatUnits(
+                            poolDetails.userClaimable,
+                            tokenDecimals,
+                          )}
                         </p>
                       </div>
                     </div>
                   )}
               </div>
             </div>
+
+            {/* ═══ Row 2: Yield Chart + Deposit ═══ */}
             <div className="flex mb-6 justify-between lg:flex-row md:flex-row flex-col gap-4 lg:gap-0 md:gap-0">
+              {/* Yield Chart */}
               <div className="bg-white border border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-6 pb-3 sm:pb-4 lg:w-[58%] md:w-[58%] w-full">
                 <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between mb-3 gap-2 sm:gap-0">
                   <div>
@@ -392,20 +421,22 @@ export default function PoolDetails() {
                   </div>
                   <div className="text-left sm:text-right w-full sm:w-auto">
                     <p className="text-xs sm:text-sm font-bold text-[#252B36] mb-1.5 sm:mb-2">
-                      Total Deposits: ${formatUnits(totalDeposited, 6)}
+                      Total Deposits:{" "}
+                      {formatUnits(totalDeposited, tokenDecimals)} {tokenSymbol}
                     </p>
                     <div className="flex flex-col items-start sm:items-end gap-1">
                       <div className="flex items-center gap-2 text-xs">
                         <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
                         <span className="text-[#252B36]">
-                          Deposits: ${formatUnits(totalDeposited, 6)}
+                          Deposits: {formatUnits(totalDeposited, tokenDecimals)}{" "}
+                          {tokenSymbol}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
                         <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
                         <span className="text-[#252B36]">
                           {vaultInfo?.hasActiveDeposit
-                            ? `In Aave: $${formatUnits(vaultInfo.principal, 6)}`
+                            ? `In Aave: ${formatUnits(vaultInfo.principal, tokenDecimals)} ${tokenSymbol}`
                             : "Yield: awaiting deposit"}
                         </span>
                       </div>
@@ -436,6 +467,8 @@ export default function PoolDetails() {
                   />
                 </div>
               </div>
+
+              {/* Pool Action Form */}
               <div className="bg-white border border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-6 pb-3 sm:pb-4 lg:w-[40%] md:w-[40%] w-full my-4 lg:my-0 md:my-0">
                 <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#252B36] mb-3 sm:mb-4">
                   Pool Actions
@@ -451,6 +484,8 @@ export default function PoolDetails() {
                   claimableAmount={poolDetails.userClaimable ?? 0n}
                   totalPaid={isUserMember ? userMember!.totalPaid : 0n}
                   frequencyUnit={unit}
+                  tokenSymbol={tokenSymbol}
+                  tokenDecimals={tokenDecimals}
                   userAddress={userAddress}
                   onSuccess={() => {
                     refetch();
@@ -460,6 +495,8 @@ export default function PoolDetails() {
                 />
               </div>
             </div>
+
+            {/* ═══ Row 3: Members Table ═══ */}
             <div className="overflow-hidden border border-gray-200 rounded-xl">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#252B36]">
@@ -532,10 +569,18 @@ export default function PoolDetails() {
                                     </div>
                                   </td>
                                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs text-[#7D7C7C]">
-                                    ${formatUnits(member.assignedRate, 6)}
+                                    {formatUnits(
+                                      member.assignedRate,
+                                      tokenDecimals,
+                                    )}{" "}
+                                    {tokenSymbol}
                                   </td>
                                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs text-[#7D7C7C]">
-                                    ${formatUnits(member.totalPaid, 6)}
+                                    {formatUnits(
+                                      member.totalPaid,
+                                      tokenDecimals,
+                                    )}{" "}
+                                    {tokenSymbol}
                                   </td>
                                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs text-[#7D7C7C]">
                                     {member.cyclesPaid} /{" "}
@@ -592,6 +637,8 @@ export default function PoolDetails() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="px-3 sm:px-6 py-3 sm:py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
                       <div className="text-xs text-[#7D7C7C]">
