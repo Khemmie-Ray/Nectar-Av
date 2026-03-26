@@ -18,7 +18,10 @@ export const wagmiAdapter = new WagmiAdapter({
   }),
   ssr: true,
   projectId,
-  networks
+  networks,
+  transports: {
+    [arbitrumSepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL!),
+  }
 })
 
 export const config = wagmiAdapter.wagmiConfig

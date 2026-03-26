@@ -18,7 +18,7 @@ if (!projectId) {
 const metadata = {
   name: 'Nectar',
   description: "Nectar helps communities save together and earn yield safely. The yield is shared based on rules you set while everyone&apos;s savings remain protected.",
-  url: 'https://localhos:3000', 
+  url: 'https://nectar-av.vercel.app', 
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }
 
