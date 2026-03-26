@@ -16,7 +16,7 @@ import {
 import { getTokenSymbol, getTokenDecimals } from "@/utils/tokenutils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const POOLS_PER_PAGE = 9;
+const POOLS_PER_PAGE = 8;
 
 export default function MyPoolsPage() {
   const { address } = useAppKitAccount();

@@ -6,7 +6,7 @@ import PoolCard from "@/components/pools/PoolCard";
 import LoadingSpinner from "@/components/Loaders/LoadingSpinner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const POOLS_PER_PAGE = 9;
+const POOLS_PER_PAGE = 8;
 
 const ACTIVE_STATES = new Set([0, 1, 2, 3]);
 
@@ -39,7 +39,7 @@ export default function Pools() {
   const inactivePages = Math.ceil(inactivePools.length / POOLS_PER_PAGE);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       <main>
         <div className="mb-5 sm:mb-6 md:mb-8">
           <h1 className="lg:text-[32px] md:text-[28px] text-[24px] font-bold text-[#252B36] mb-1">
@@ -157,7 +157,7 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <>
+    <div className="mt-auto">
       <div className="flex items-center justify-center gap-2 mt-8">
         <button
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
@@ -206,6 +206,6 @@ function Pagination({
         {Math.min(currentPage * POOLS_PER_PAGE, totalItems)} of {totalItems}{" "}
         pools
       </p>
-    </>
+    </div>
   );
 }
